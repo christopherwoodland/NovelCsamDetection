@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="Azure.AI.ContentSafety" Version="1.0.0" />
+		<PackageReference Include="Azure.Identity" Version="1.13.1" />
+		<PackageReference Include="Azure.Storage.Files.DataLake" Version="12.21.0" />
+		<PackageReference Include="MediaToolkit.Standard" Version="1.5.0" />
+		<PackageReference Include="Microsoft.ApplicationInsights" Version="2.22.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.AzureAppConfiguration" Version="8.0.0" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="Polly" Version="8.5.0" />
+		<PackageReference Include="Xabe.FFmpeg" Version="5.2.6" />
+	
+	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\NovelCsam.Models\NovelCsam.Models.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+	  <None Update="ffmpeg-full\tools\ffmpeg\bin\ffmpeg.exe">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="ffmpeg-full\tools\ffmpeg\bin\ffplay.exe">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="ffmpeg-full\tools\ffmpeg\bin\ffprobe.exe">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	</ItemGroup>
+</Project>

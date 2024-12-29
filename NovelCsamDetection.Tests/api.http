@@ -1,0 +1,36 @@
+﻿### Start Extract Job
+POST http://localhost:32537/api/jobs/extract
+Content-Type: application/json
+{
+  "SubscriptionParam": "fa9266c1-98b5-4a5a-9f0a-1fccbe309628",
+  "ResourceGroupParam": "digital-forensics",
+  "JobNameParam": "video-extract",
+  "FileNameParam": "short2.webm",
+  "KeyVaultParam": "digitalforensicskv",
+  "SourceContainerNameParam": "videos",
+  "SourceDirPathParam": "input",
+  "DestDirPathExtParam": "extracted",
+  "StorageAccountNameParam": "digitalforensicsstg",
+  "DebugModeParam": "true"
+}
+
+### Start Analyze Job
+POST http://localhost:32537/api/jobs/analyze
+Content-Type: application/json
+{
+  "SubscriptionParam": "fa9266c1-98b5-4a5a-9f0a-1fccbe309628",
+  "ResourceGroupParam": "digital-forensics",
+  "JobNameParam": "video-analyze",
+  "FileNameParam": "short.webm_20241216211201",
+  "KeyVaultParam": "digitalforensicskv",
+  "SourceContainerNameParam": "videos",
+  "SourceDirPathParam": "input",
+  "DestDirPathExtParam": "extracted",
+  "DestDirPathParam": "results",
+  "StorageAccountNameParam": "digitalforensicsstg",
+  "DebugModeParam": "true",
+  "WriteToJsonParam": "false",
+  "WriteToCosmosParam": "false",
+  "CosmosDbNameParam": "NovelCsam",
+  "CosmosDbContainerNameParam": "video-results"
+}

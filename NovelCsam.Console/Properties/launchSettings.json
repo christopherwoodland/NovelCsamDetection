@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "NovelCsam.Console": {
+      "commandName": "Project",
+      "commandLineArgs": "2\r\nviolent.webm\r\nvideos\r\ninput\r\nextracted\r\nresults\r\nsegmented"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker",
+      "commandLineArgs": "1\r\nshort.webm\r\nvideos\r\ninput\r\nextracted\r\nresults\r\nsegmented"
+    }
+  }
+}
