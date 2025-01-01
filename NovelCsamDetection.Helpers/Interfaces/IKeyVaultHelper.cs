@@ -1,5 +1,4 @@
-﻿using Azure.Security.KeyVault.Secrets;
-namespace NovelCsamDetection.Helpers.Interfaces
+﻿namespace NovelCsamDetection.Helpers.Interfaces
 {
     public interface IKeyVaultHelper
     {

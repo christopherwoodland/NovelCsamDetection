@@ -2,11 +2,11 @@
   "profiles": {
     "NovelCsam.Console": {
       "commandName": "Project",
-      "commandLineArgs": "2\r\nviolent.webm\r\nvideos\r\ninput\r\nextracted\r\nresults\r\nsegmented"
+      "commandLineArgs": "1\r\nshort.webm\r\nvideos\r\nextracted/images002\r\nextracted\r\nresults\r\nsegmented\r\n40\r\n4\r\nshort.webm"
     },
     "Container (Dockerfile)": {
       "commandName": "Docker",
-      "commandLineArgs": "1\r\nshort.webm\r\nvideos\r\ninput\r\nextracted\r\nresults\r\nsegmented"
+      "commandLineArgs": "1\r\nviolent.webm\r\nvideos\r\nextracted/violent.webm/20241229_221100\r\nextracted\r\nresults\r\nsegmented\r\n40\r\n3\r\nviolent.webm"
     }
   }
 }

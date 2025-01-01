@@ -1,25 +1,195 @@
-﻿using Microsoft.VisualBasic;
-using System.IO.Abstractions;
-using Xabe.FFmpeg;
-
-namespace NovelCsamDetection.Helpers
+﻿namespace NovelCsamDetection.Helpers
 {
 	public class VideoHelper : IVideoHelper
 	{
 		private readonly DataLakeServiceClient _serviceClient;
+		private readonly IKernelBuilder _kernelBuilder;
+		private readonly Kernel _kernel;
 		private readonly ILogHelper _logHelper;
-		private List<string> _extractedFrames;
 		private readonly IStorageHelper _sth;
+		private readonly IContentSafteyHelper _csh;
+		private readonly IAzureSQLHelper _ash;
 		private enum FFMPEG_MODE { VSEG = 0, FSEG = 1 }
+		private const string HATE = "hate";
+		private const string SELF_HARM = "selfharm";
+		private const string VIOLENCE = "violence";
+		private const string SEXUAL = "sexual";
 
-		public VideoHelper(IStorageHelper sth, ILogHelper logHelper)
+
+		public VideoHelper(IStorageHelper sth, ILogHelper logHelper, IContentSafteyHelper csh, IAzureSQLHelper ash)
 		{
 			_logHelper = logHelper;
-			_extractedFrames = [];
 			_sth = sth;
+			_csh = csh;
+			_kernelBuilder = Kernel.CreateBuilder();
+
+			var oaidnm = Environment.GetEnvironmentVariable("OPEN_AI_DEPLOYMENT_NAME") ?? "";
+			var oaikey = Environment.GetEnvironmentVariable("OPEN_AI_KEY") ?? "";
+			var oaiendpoint = Environment.GetEnvironmentVariable("OPEN_AI_ENDPOINT") ?? "";
+			var oaimodel = Environment.GetEnvironmentVariable("OPEN_AI_MODEL") ?? "";
+			_kernelBuilder.AddAzureOpenAIChatCompletion(
+				deploymentName: oaidnm,
+				apiKey: oaikey,
+				endpoint: oaiendpoint,
+				modelId: oaimodel,
+				serviceId: Guid.NewGuid().ToString());
+
+			_kernel = _kernelBuilder.Build();
+			_ash = ash;
+		}
+		public async Task UploadImageOnlyFrameResultsToBlobAsync(string containerName, string containerFolderPath, string containerFolderPathResults, string sourceFileName, bool withBase64ofImage = false)
+		{
+			var list = await _sth.ListBlobsInFolderWithResizeAsync(containerName, containerFolderPath);
+			Dictionary<string, IFrameResult>? ret = [];
+			var runId = Guid.NewGuid().ToString();
+			var runDateTime = DateTime.UtcNow;
+			foreach (var item in list)
+			{
+				AnalyzeImageResult? air = GetContentSafteyDetails(item.Value);
+				var summary = await SummarizeImageAsync(item.Value, "Can you do a detail analysis and tell me all the minute details about this image. Use no more than 450 words!!!");
+				var childYesNo = await SummarizeImageAsync(item.Value, "Is there a younger person or child in this image? If you can't make a determination ANSWER No, ONLY ANSWER Yes or No!!");
+				var md5Hash = CreateMD5Hash(item.Value);
+				var newItem = new FrameResult
+				{
+					MD5Hash = md5Hash,
+					Summary = summary,
+					RunId = runId,
+					Id = Guid.NewGuid().ToString(),
+					Frame = item.Key,
+					ChildYesNo = childYesNo,
+					ImageBase64 = withBase64ofImage ? ConvertToBase64(item.Value) : "",
+					RunDateTime = runDateTime
+				};
+
+				if (air != null)
+				{
+					foreach (var citem in air.CategoriesAnalysis)
+					{
+						if (citem.Category.ToString().ToLowerInvariant() == HATE)
+						{
+							newItem.Hate = (int)citem.Severity;
+						}
+						else if (citem.Category.ToString().ToLowerInvariant() == SELF_HARM)
+						{
+							newItem.SelfHarm = (int)citem.Severity;
+						}
+						else if (citem.Category.ToString().ToLowerInvariant() == VIOLENCE)
+						{
+							newItem.Violence = (int)citem.Severity;
+						}
+						else if (citem.Category.ToString().ToLowerInvariant() == SEXUAL)
+						{
+							newItem.Sexual = (int)citem.Severity;
+						}
+					}
+				}
+				//ret.Add(item.Key, newItem);
+				//_cdbh.CreateFrameResult(newItem); //CosmosDB Write
+				await _ash.CreateFrameResult(newItem);
+				await _ash.InsertBase64(newItem);
+			}
 		}
 
-		public async Task UploadExtractedFramesToBlobAsync(int frameInterval, string fileName, string containerName, string containerFolderPath, string containerFolderPathExtracted)
+
+		public async Task UploadFrameResultsToBlobAsync(string containerName, string containerFolderPath, string containerFolderPathResults, string sourceFileName, bool withBase64ofImage = false)
+		{
+			var list = await _sth.ListBlobsInFolderAsync(containerName, containerFolderPath);
+			Dictionary<string, IFrameResult>? ret = [];
+			var runId = Guid.NewGuid().ToString();
+			var runDateTime = DateTime.UtcNow;
+			foreach (var item in list)
+			{
+				AnalyzeImageResult? air = GetContentSafteyDetails(item.Value);
+				var summary = await SummarizeImageAsync(item.Value, "Can you do a detail analysis and tell me all the minute details about this image. Use no more than 450 words!!!");
+				var childYesNo = await SummarizeImageAsync(item.Value, "Is there a younger person or child in this image? If you can't make a determination ANSWER No, ONLY ANSWER Yes or No!!");
+				var md5Hash = CreateMD5Hash(item.Value);
+				var newItem = new FrameResult
+				{
+					MD5Hash = md5Hash,
+					Summary = summary,
+					RunId = runId,
+					Id = Guid.NewGuid().ToString(),
+					Frame = item.Key,
+					ChildYesNo = childYesNo,
+					ImageBase64 = withBase64ofImage ? ConvertToBase64(item.Value) : "",
+					RunDateTime = runDateTime
+				};
+
+				if (air != null)
+				{
+					foreach (var citem in air.CategoriesAnalysis)
+					{
+						if (citem.Category.ToString().ToLowerInvariant() == HATE)
+						{
+							newItem.Hate = (int)citem.Severity;
+						}
+						else if (citem.Category.ToString().ToLowerInvariant() == SELF_HARM)
+						{
+							newItem.SelfHarm = (int)citem.Severity;
+						}
+						else if (citem.Category.ToString().ToLowerInvariant() == VIOLENCE)
+						{
+							newItem.Violence = (int)citem.Severity;
+						}
+						else if (citem.Category.ToString().ToLowerInvariant() == SEXUAL)
+						{
+							newItem.Sexual = (int)citem.Severity;
+						}
+					}
+				}
+				//ret.Add(item.Key, newItem);
+				//_cdbh.CreateFrameResult(newItem); //CosmosDB Write
+				await _ash.CreateFrameResult(newItem);
+				await _ash.InsertBase64(newItem);
+			}
+		}
+		public string ConvertToBase64(BinaryData imageData)
+		{
+			byte[] imageBytes = imageData.ToArray();
+			return Convert.ToBase64String(imageBytes);
+		}
+		public string CreateMD5Hash(BinaryData imageData)
+		{
+			using MD5 md5 = MD5.Create();
+			byte[] hashBytes = md5.ComputeHash(imageData.ToArray());
+			StringBuilder sb = new StringBuilder();
+			for (int i = 0; i < hashBytes.Length; i++)
+			{
+				sb.Append(hashBytes[i].ToString("x2"));
+			}
+			return sb.ToString();
+		}
+
+		public async Task<string> SummarizeImageAsync(BinaryData imageBytes, string userPrompt)
+		{
+			try
+			{
+				var chat = _kernel.GetRequiredService<IChatCompletionService>();
+				var history = new ChatHistory();
+				history.AddSystemMessage("You are a helpful assistant that responds to questions directly");
+				var message = new ChatMessageContentItemCollection
+				{
+					new TextContent(userPrompt),//"Can you do a detail analysis and tell me all the minute details that present in this image?"),
+					new ImageContent(imageBytes,GetMimeType(imageBytes))
+				};
+
+				history.AddUserMessage(message);
+				var res = await chat.GetChatMessageContentAsync(history);
+				return res.Content ?? "NO SUMMARY GENERATED";
+			}
+
+			catch (Exception ex)
+			{
+				_logHelper.LogException($"An error occurred summarizing an image: {ex.Message}", nameof(VideoHelper), nameof(SummarizeImageAsync), ex);
+				return $"Error: {ex.Message}";
+			}
+		}
+		public AnalyzeImageResult? GetContentSafteyDetails(BinaryData bd)
+		{
+			return _csh.AnalyzeImage(bd);
+		}
+
+		public async Task UploadExtractedFramesToBlobAsync(int frameInterval, string fileName, string containerName, string containerFolderPath, string containerFolderPathExtracted, string sourceFileName)
 		{
 			// Generate a new GUID
 			string guid = Guid.NewGuid().ToString();
@@ -37,17 +207,16 @@ namespace NovelCsamDetection.Helpers
 			string localVideoPath = Path.Combine(tempPath, fileName);
 			await _sth.DownloadFileAsync(containerName, containerFolderPath, fileName, localVideoPath);
 
-			_extractedFrames = await ExtractFramesAsync(localVideoPath, frameInterval, fileName);
+			var extractedFrames = await ExtractFramesAsync(localVideoPath, frameInterval, fileName);
 			string timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-			foreach (var frame in _extractedFrames)
+			foreach (var frame in extractedFrames)
 			{
 				string fileNameFrame = Path.GetFileName(frame);
-				await _sth.UploadFileAsync(containerName, containerFolderPathExtracted, fileNameFrame, localVideoPath, timestamp, fileName);
+				await _sth.UploadFileAsync(containerName, containerFolderPathExtracted, fileNameFrame, localVideoPath, timestamp, sourceFileName);
 				_logHelper.LogInformation($"Uploaded {fileNameFrame} to {timestamp}", nameof(VideoHelper), nameof(UploadExtractedFramesToBlobAsync));
 
 			}
 		}
-
 		public async Task UploadSegmentVideoToBlobAsync(int splitTime, string fileName, string containerName, string containerFolderPath, string containerFolderPathSegmented)
 		{
 			// Generate a new GUID
@@ -79,6 +248,31 @@ namespace NovelCsamDetection.Helpers
 		}
 
 		#region Private Methods
+
+		private string GetMimeType(BinaryData imageData)
+		{
+			using (var ms = new MemoryStream(imageData.ToArray()))
+			{
+				using (var image = Image.FromStream(ms))
+				{
+					ImageFormat format = image.RawFormat;
+					if (ImageFormat.Jpeg.Equals(format))
+						return "image/jpeg";
+					if (ImageFormat.Png.Equals(format))
+						return "image/png";
+					if (ImageFormat.Gif.Equals(format))
+						return "image/gif";
+					if (ImageFormat.Bmp.Equals(format))
+						return "image/bmp";
+					if (ImageFormat.Tiff.Equals(format))
+						return "image/tiff";
+					if (ImageFormat.Icon.Equals(format))
+						return "image/x-icon";
+					// Add more formats if needed
+					return "application/octet-stream"; // Default MIME type if format is unknown
+				}
+			}
+		}
 		private async Task<List<string>> ExtractFramesAsync(string videoPath, int frameInterval = 1, string filename = "frame")
 		{
 			try
@@ -89,7 +283,7 @@ namespace NovelCsamDetection.Helpers
 					Directory.CreateDirectory(outputDir);
 				}
 				await RunFFmpegAsync(videoPath, outputDir, null, FFMPEG_MODE.FSEG, 1);
-				List<string> extractedFrames = [.. Directory.GetFiles(outputDir, "*.png")];
+				List<string> extractedFrames = [.. Directory.GetFiles(outputDir, "*.jpg")];
 				extractedFrames.Sort();
 				return extractedFrames;
 			}
@@ -115,7 +309,8 @@ namespace NovelCsamDetection.Helpers
 				segmentedVideos.Sort();
 				return segmentedVideos;
 			}
-			catch (Exception ex){
+			catch (Exception ex)
+			{
 				_logHelper.LogException($"An error occurred while segmenting video: {ex.Message}", nameof(VideoHelper), nameof(SegmentVideoAsync), ex);
 				return [];
 			}
@@ -146,10 +341,12 @@ namespace NovelCsamDetection.Helpers
 				else if (mode == FFMPEG_MODE.FSEG)
 				{
 					//Frame segmentaion
-					string framePattern = Path.Combine(outputFilePath, $"frame_%010d.png");
+					string framePattern = Path.Combine(outputFilePath, $"frame_%010d.jpg");
 					conversion.AddParameter($"-i \"{videoPath}\"")
 					.AddParameter($"-vf \"fps=1/{frameInterval}\"")
 					.AddParameter($"-compression_level 0")
+					//.AddParameter($"-q:v 2") // Adjust the quality to control the file size
+					.AddParameter($"-fs 4194304") // Set the maximum file size to 4 MB
 					.SetOutput(framePattern);
 				}
 

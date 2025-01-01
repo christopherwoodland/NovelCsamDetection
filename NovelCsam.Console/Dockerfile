@@ -1,35 +1,42 @@
-# See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
+# Use the official .NET SDK image as a build stage
+FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 
-# This stage is used when running from VS in fast mode (Default for Debug configuration)
-FROM mcr.microsoft.com/dotnet/runtime:8.0 AS base
-USER app
+# Set the working directory inside the container
 WORKDIR /app
 
-# Switch to root to change permissions
-USER root
-# Grant full read and write access to the /tmp directory
-RUN chown -R app:app /tmp && chmod -R 777 /tmp
-# Switch back to the app user
-USER app
+# Copy the project file and restore dependencies
+COPY *.csproj ./
+RUN dotnet restore
 
+# Copy the rest of the application code
+COPY . ./
 
-# This stage is used to build the service project
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-ARG BUILD_CONFIGURATION=Release
-WORKDIR /src
-COPY ["NovelCsam.Console/NovelCsam.Console.csproj", "NovelCsam.Console/"]
-RUN dotnet restore "./NovelCsam.Console/NovelCsam.Console.csproj"
-COPY . .
-WORKDIR "/src/NovelCsam.Console"
-RUN dotnet build "./NovelCsam.Console.csproj" -c $BUILD_CONFIGURATION -o /app/build
+# Build the application
+RUN dotnet publish -c Release -o out
 
-# This stage is used to publish the service project to be copied to the final stage
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./NovelCsam.Console.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+# Use the official .NET runtime image as a runtime stage
+FROM mcr.microsoft.com/dotnet/runtime:7.0
 
-# This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
-FROM base AS final
+# Set the working directory inside the container
 WORKDIR /app
-COPY --from=publish /app/publish .
+
+# Copy the built application from the build stage
+COPY --from=build /app/out .
+
+# Set environment variables (optional, you can also set them in your code)
+ENV AZURE_SQL_CONNECTION_STRING="Server=tcp:df-sql-server-eastus-001.database.windows.net,1433;Initial Catalog=df-sql-eastus-001;Persist Security Info=False;User ID=cwoodland;Password=django20221!!;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+ENV CONTENT_SAFETY_CONNECTION_STRING="https://cwcontentsafetyeastus2001.cognitiveservices.azure.com/"
+ENV CONTENT_SAFETY_CONNECTION_KEY="2b69c5c74f0642c9bc5cf713111e5bf9"
+ENV COSMOS_DB_CONNECTION_STRING="AccountEndpoint=https://igital-forensics-eastus-001.documents.azure.com:443/;AccountKey=QGcPlwvi2dq5gFSJheXIF9rupVC1vh6bQqqucgkuU4cGh7O5bQCsV7FdZZS2wFJWyNetwhouv27xACDbTrvj2A==;"
+ENV COSMOS_DB_DATABASE_NAME="Forensics"
+ENV COSMOS_DB_CONTAINER_NAME="Images"
+ENV STORAGE_ACCOUNT_NAME="digitalforensicsstg"
+ENV STORAGE_ACCOUNT_KEY="IGnMXV0C6jZrPX3RapNgHDtfY0OI8M20Y9K+qOG6Zm0mvvRdzUJOHHIkae0VjTKoIWRugb82cFi7+AStRuP/MQ=="
+ENV STORAGE_ACCOUNT_URL="https://digitalforensicsstg.dfs.core.windows.net"
+ENV OPEN_AI_DEPLOYMENT_NAME="gpt-4o"
+ENV OPEN_AI_KEY="89a35462495b4448b433e57d092397e3"
+ENV OPEN_AI_ENDPOINT="https://openai-sesame-eastus-001.openai.azure.com/"
+ENV OPEN_AI_MODEL="gpt-4o"
+
+# Set the entry point for the application
 ENTRYPOINT ["dotnet", "NovelCsam.Console.dll"]

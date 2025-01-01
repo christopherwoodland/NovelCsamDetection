@@ -3,15 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35431.28
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovelCsamDetection", "NovelCsamDetection\NovelCsamDetection.csproj", "{5925BCD4-7971-40E6-970A-2650F22EDD41}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NovelCsamDetection.Tests", "NovelCsamDetection.Tests\NovelCsamDetection.Tests.csproj", "{65CDC471-7A84-4410-B911-633C5C72AADD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovelCsamDetection.Tests", "NovelCsamDetection.Tests\NovelCsamDetection.Tests.csproj", "{65CDC471-7A84-4410-B911-633C5C72AADD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NovelCsamDetection.Helpers", "NovelCsamDetection.Helpers\NovelCsamDetection.Helpers.csproj", "{A0C6A60F-DA70-44BE-A5EC-CB29FF52AE56}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovelCsamDetection.Helpers", "NovelCsamDetection.Helpers\NovelCsamDetection.Helpers.csproj", "{A0C6A60F-DA70-44BE-A5EC-CB29FF52AE56}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NovelCsam.Models", "NovelCsam.Models\NovelCsam.Models.csproj", "{B679C4EC-8238-43DC-96A1-E2BC42C1BB8F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovelCsam.Models", "NovelCsam.Models\NovelCsam.Models.csproj", "{B679C4EC-8238-43DC-96A1-E2BC42C1BB8F}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovelCsam.Console", "NovelCsam.Console\NovelCsam.Console.csproj", "{1725BAE6-9360-4764-9E9C-774A0E50C193}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NovelCsam.Console", "NovelCsam.Console\NovelCsam.Console.csproj", "{1725BAE6-9360-4764-9E9C-774A0E50C193}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -19,10 +17,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{5925BCD4-7971-40E6-970A-2650F22EDD41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5925BCD4-7971-40E6-970A-2650F22EDD41}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5925BCD4-7971-40E6-970A-2650F22EDD41}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5925BCD4-7971-40E6-970A-2650F22EDD41}.Release|Any CPU.Build.0 = Release|Any CPU
 		{65CDC471-7A84-4410-B911-633C5C72AADD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{65CDC471-7A84-4410-B911-633C5C72AADD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{65CDC471-7A84-4410-B911-633C5C72AADD}.Release|Any CPU.ActiveCfg = Release|Any CPU

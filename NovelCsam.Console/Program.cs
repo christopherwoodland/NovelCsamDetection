@@ -1,9 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using NovelCsamDetection.Helpers;
-using NovelCsamDetection.Helpers.Interfaces;
-using System;
-
-namespace NovelCsam.Console
+﻿namespace NovelCsam.Console
 {
 	internal class Program
 	{
@@ -14,9 +9,9 @@ namespace NovelCsam.Console
 				// Setup Dependency Injection
 				var serviceCollection = new ServiceCollection();
 				ConfigureServices(serviceCollection);
-				var serviceProvider = serviceCollection.BuildServiceProvider();
+				
 
-				if (args.Length != 0 && args.Length == 7)
+				if (args.Length != 0 && args.Length == 10)
 				{
 					int frameInterval = Convert.ToInt16(args[0]);
 					var fileName = args[1];
@@ -27,7 +22,11 @@ namespace NovelCsam.Console
 					var containerFolderPathSegmented = args[6];
 					int splitInterval = Convert.ToInt16(args[7]);
 					int jobType = Convert.ToInt16(args[8]);
+					string sourceFileName = args[9];
+
+
 					// Resolve and run the main application
+					var serviceProvider = serviceCollection.BuildServiceProvider();
 					var app = serviceProvider.GetService<IVideoHelper>();
 
 					if (app != null)
@@ -38,9 +37,15 @@ namespace NovelCsam.Console
 								await app.UploadSegmentVideoToBlobAsync(splitInterval, fileName, containerName, containerFolderPath, containerFolderPathSegmented);
 								break;
 							case 2:
-								await app.UploadExtractedFramesToBlobAsync(frameInterval, fileName, containerName, containerFolderPath, containerFolderPathExtracted);
+								await app.UploadExtractedFramesToBlobAsync(frameInterval, fileName, containerName, containerFolderPath, containerFolderPathExtracted, sourceFileName);
 								break;
-							case 3: break;
+							case 3:
+								await app.UploadFrameResultsToBlobAsync(containerName, containerFolderPath, containerFolderPathResults, sourceFileName,true);
+								break;
+							case 4:
+								await app.UploadImageOnlyFrameResultsToBlobAsync(containerName, containerFolderPath, containerFolderPathResults, sourceFileName, true);
+								break;
+
 							default: break;
 						}
 
@@ -53,10 +58,7 @@ namespace NovelCsam.Console
 				ConfigureServices(serviceCollection);
 				var serviceProvider = serviceCollection.BuildServiceProvider();
 				var logHelper = serviceProvider.GetService<ILogHelper>();
-				if (logHelper != null)
-				{
-					logHelper.LogException($"An error occurred during run in main: {ex.Message}", nameof(Program), nameof(Main), ex);
-				}
+				logHelper?.LogException($"An error occurred during run in main: {ex.Message}", nameof(Program), nameof(Main), ex);
 			}
 		}
 
@@ -66,13 +68,15 @@ namespace NovelCsam.Console
 			// Add Application Insights telemetry with the connection string
 			services.AddApplicationInsightsTelemetryWorkerService(options =>
 			{
-				options.ConnectionString = "e6f138fa-f1d7-43d3-94e4-a7373d488218;IngestionEndpoint=https://eastus2-3.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus2.livediagnostics.monitor.azure.com/;ApplicationId=11096425-5af5-4abe-b1b6-d2cf72715c1a";
+				options.ConnectionString = Environment.GetEnvironmentVariable("APP_INSIGHTS_CONNECTION_STRING");
 			});
 
+			services.AddTransient<IAzureSQLHelper, AzureSQLHelper>();
 			services.AddScoped<ILogHelper, LogHelper>();
+			services.AddScoped<IContentSafteyHelper, ContentSafteyHelper>();
 			services.AddScoped<IStorageHelper, StorageHelper>();
 			services.AddTransient<IVideoHelper, VideoHelper>();
-
+			//services.AddTransient<ICosmosDBHelper, CosmosDBHelper>();
 		}
 	}
 }
