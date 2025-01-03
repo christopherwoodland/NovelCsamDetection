@@ -5,13 +5,13 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy the solution file
-COPY *.* ./
+COPY NovelCsamDetection.sln ./
 
 # Copy all project files
-COPY NovelCsamDetection.Tests/NovelCsamDetection.Tests.csproj NovelCsamDetection.Tests/
+#COPY NovelCsamDetection.Tests/NovelCsamDetection.Tests.csproj NovelCsamDetection.Tests/
 COPY NovelCsam.Helpers/NovelCsam.Helpers.csproj NovelCsam.Helpers/
 COPY NovelCsam.Models/NovelCsam.Models.csproj NovelCsam.Models/
-COPY NovelCsam.Console/NovelCsam.Console.csproj NovelCsam.Console/
+#COPY NovelCsam.Console/NovelCsam.Console.csproj NovelCsam.Console/
 #COPY NovelCsam.UI.Console/NovelCsam.UI.Console.csproj NovelCsam.UI.Console/
 
 # Restore dependencies

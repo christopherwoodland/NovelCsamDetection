@@ -97,6 +97,77 @@ namespace NovelCsamDetection.Helpers
 
 
 		#region Public Methods
+		//public async Task<Dictionary<string, string>> ListDirectoriesInFolderAsync(string containerName, string folderPath)
+		//{
+		//	var directories = new Dictionary<string, string>();
+		//	try
+		//	{
+		//		DataLakeFileSystemClient fileSystemClient = _serviceClient.GetFileSystemClient(containerName);
+		//		DataLakeDirectoryClient directoryClient = fileSystemClient.GetDirectoryClient(folderPath);
+		//		var cnt = 1;
+		//		await foreach (PathItem pathItem in directoryClient.GetPathsAsync())
+		//		{
+
+		//			if (pathItem.IsDirectory == true)
+		//			{
+		//				directories.Add(cnt.ToString(), pathItem.Name);
+
+		//			}
+		//			cnt++;
+		//		}
+		//	}
+		//	catch (Exception ex)
+		//	{
+		//		_logHelper.LogException($"An error occurred listing directories: {ex.Message}", nameof(StorageHelper), nameof(ListDirectoriesInFolderAsync), ex);
+		//		throw;
+		//	}
+
+		//	return directories;
+		//}
+
+		public async Task<Dictionary<int, string>> ListDirectoriesInFolderAsync(string containerName, string folderPath, int maxDepth = 10)
+		{
+			var directories = new Dictionary<int, string>();
+			try
+			{
+				DataLakeFileSystemClient fileSystemClient = _serviceClient.GetFileSystemClient(containerName);
+				var indexHolder = new IndexHolder { Index = 1 };
+				await ListDirectoriesRecursive(fileSystemClient, folderPath, directories, 1, maxDepth, indexHolder);
+			}
+			catch (Exception ex)
+			{
+				_logHelper.LogException($"An error occurred listing directories: {ex.Message}", nameof(StorageHelper), nameof(ListDirectoriesInFolderAsync), ex);
+				throw;
+			}
+
+			return directories;
+		}
+
+		private async Task ListDirectoriesRecursive(DataLakeFileSystemClient fileSystemClient, string folderPath, Dictionary<int, string> directories, int currentDepth, int maxDepth, IndexHolder indexHolder)
+		{
+			if (currentDepth > maxDepth)
+			{
+				return;
+			}
+
+			DataLakeDirectoryClient directoryClient = fileSystemClient.GetDirectoryClient(folderPath);
+			await foreach (PathItem pathItem in directoryClient.GetPathsAsync())
+			{
+				if (pathItem.IsDirectory == true)
+				{
+					if (currentDepth > 1)
+					{
+						directories.Add(indexHolder.Index++, pathItem.Name);
+					}
+					await ListDirectoriesRecursive(fileSystemClient, pathItem.Name, directories, currentDepth + 1, maxDepth, indexHolder);
+				}
+			}
+		}
+
+		private class IndexHolder
+		{
+			public int Index { get; set; }
+		}
 		public async Task<Dictionary<string, BinaryData>> ListBlobsInFolderWithResizeAsync(string containerName, string folderPath)
 		{
 			var ret = new Dictionary<string, BinaryData>();

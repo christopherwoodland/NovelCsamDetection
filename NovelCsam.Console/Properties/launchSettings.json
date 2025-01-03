@@ -2,7 +2,7 @@
   "profiles": {
     "NovelCsam.Console": {
       "commandName": "Project",
-      "commandLineArgs": "1\r\nshort.webm\r\nvideos\r\nextracted/images002\r\nextracted\r\nresults\r\nsegmented\r\n40\r\n4\r\nshort.webm"
+      "commandLineArgs": "1\r\nshort.webm\r\nvideos\r\ninput\r\nextracted\r\nresults\r\nsegmented\r\n40\r\n5\r\nC:\\Users\\cwoodland\\Downloads\\test_videos\\short.webm"
     },
     "Container (Dockerfile)": {
       "commandName": "Docker",

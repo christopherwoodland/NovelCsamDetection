@@ -17,8 +17,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\NovelCsam.Helpers\NovelCsam.Helpers.csproj" />
 		<ProjectReference Include="..\NovelCsam.Models\NovelCsam.Models.csproj" />
-		<ProjectReference Include="..\NovelCsamDetection.Helpers\NovelCsamDetection.Helpers.csproj" />
 	</ItemGroup>
 
 </Project>

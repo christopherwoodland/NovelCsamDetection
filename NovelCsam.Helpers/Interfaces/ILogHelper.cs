@@ -1,4 +1,4 @@
-namespace NovelCsamDetection.Helper.Interfaces
+namespace NovelCsamDetection.Helpers.Interfaces
 {
     /// <summary>
     /// Defines a contract for logging helper objects.

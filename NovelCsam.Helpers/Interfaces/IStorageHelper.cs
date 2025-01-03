@@ -7,5 +7,6 @@
 		public Task DownloadFileAsync(string containerName, string containerFolderPath, string fileName, string localVideoPath);
 		public Task<Dictionary<string, BinaryData>> ListBlobsInFolderAsync(string containerName, string folderPath);
 		public Task<Dictionary<string, BinaryData>> ListBlobsInFolderWithResizeAsync(string containerName, string folderPath);
+		public Task<Dictionary<int, string>> ListDirectoriesInFolderAsync(string containerName, string folderPath, int maxDepth = 3);
 	}
 }
