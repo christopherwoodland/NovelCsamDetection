@@ -1,16 +1,26 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.ApplicationInsights;
+using System;
+using System.Collections.Generic;
+
 namespace NovelCsamDetection.Helpers
 {
-	public class LogHelper(ILoggerFactory loggerFactory, TelemetryClient telemetryClient) : ILogHelper
+	public class LogHelper : ILogHelper
 	{
-		private readonly ILogger<LogHelper> _logger = loggerFactory.CreateLogger<LogHelper>();
-		private readonly TelemetryClient _telemetryClient = telemetryClient;
+		private readonly ILogger<LogHelper> _logger;
+		private readonly TelemetryClient _telemetryClient;
+
+		public LogHelper(ILogger<LogHelper> logger, TelemetryClient telemetryClient)
+		{
+			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+			_telemetryClient = telemetryClient ?? throw new ArgumentNullException(nameof(telemetryClient));
+		}
 
 		#region Information Logging
 
 		public void LogInformation(string message, string sourceClassName, string sourceFunction)
 		{
-			var logMessage = $"{sourceClassName}:{sourceFunction}:{message}";
-			_logger.LogInformation(logMessage);
+			Log(LogLevel.Information, message, sourceClassName, sourceFunction);
 		}
 
 		#endregion
@@ -21,25 +31,35 @@ namespace NovelCsamDetection.Helpers
 		{
 			var logMessage = $"{sourceClassName}:{sourceFunction}:{message}:{ex.Message}";
 			_logger.LogError(logMessage);
-			_telemetryClient.TrackException(ex, new Dictionary<string, string> {
+			_telemetryClient.TrackException(ex, new Dictionary<string, string>
+			{
 				{ "Custom Message", message },
 				{ "sourceClassName", sourceClassName },
-				{ "sourceFunction", sourceFunction }});
+				{ "sourceFunction", sourceFunction }
+			});
 		}
-
 
 		#endregion
 
 		#region Trace Logging
+
 		public void LogTrace(string message, string sourceClassName, string sourceFunction)
 		{
+			Log(LogLevel.Trace, message, sourceClassName, sourceFunction);
+		}
+
+		#endregion
+
+		private void Log(LogLevel logLevel, string message, string sourceClassName, string sourceFunction)
+		{
 			var logMessage = $"{sourceClassName}:{sourceFunction}:{message}";
-			_logger.LogTrace(logMessage);
-			_telemetryClient.TrackTrace(logMessage, new Dictionary<string, string> {
+			_logger.Log(logLevel, logMessage);
+			_telemetryClient.TrackTrace(logMessage, new Dictionary<string, string>
+			{
 				{ "Custom Message", message },
 				{ "sourceClassName", sourceClassName },
-				{ "sourceFunction", sourceFunction }});
+				{ "sourceFunction", sourceFunction }
+			});
 		}
-		#endregion
 	}
 }

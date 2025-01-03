@@ -74,7 +74,7 @@
 
 			services.AddTransient<IAzureSQLHelper, AzureSQLHelper>();
 			services.AddScoped<ILogHelper, LogHelper>();
-			services.AddScoped<IContentSafteyHelper, ContentSafteyHelper>();
+			services.AddScoped<IContentSafetyHelper, ContentSafteyHelper>();
 			services.AddScoped<IStorageHelper, StorageHelper>();
 			services.AddTransient<IVideoHelper, VideoHelper>();
 			//services.AddTransient<ICosmosDBHelper, CosmosDBHelper>();

@@ -22,95 +22,88 @@ namespace NovelCsamDetection.Helpers
 
 		public async Task<IFrameResult?> CreateFrameResult(IFrameResult item)
 		{
+			string query = @"
+				INSERT INTO FrameResults (
+					Id,
+					Summary,
+					ChildYesNo,
+					MD5Hash,
+					Frame,
+					RunId,
+					Hate,
+					SelfHarm,
+					Violence,
+					Sexual,
+					RunDateTime
+				) VALUES (
+					@Id,
+					@Summary,
+					@ChildYesNo,
+					@MD5Hash,
+					@Frame,
+					@RunId,
+					@Hate,
+					@SelfHarm,
+					@Violence,
+					@Sexual,
+					@RunDateTime
+				)";
 
-			try
-			{
-				using (SqlConnection connection = new(_connectionString))
-				{
-					await connection.OpenAsync();
-
-					string query = @"
-                        INSERT INTO FrameResults (
-                            Id,
-                            Summary,
-                            ChildYesNo,
-                            MD5Hash,
-                            Frame,
-                            RunId,
-                            Hate,
-                            SelfHarm,
-                            Violence,
-                            Sexual,
-                            RunDateTime
-                        ) VALUES (
-                            @Id,
-                            @Summary,
-                            @ChildYesNo,
-                            @MD5Hash,
-                            @Frame,
-                            @RunId,
-                            @Hate,
-                            @SelfHarm,
-                            @Violence,
-                            @Sexual,
-                            @RunDateTime
-                        )";
-
-					using SqlCommand command = new(query, connection);
-					command.Parameters.AddWithValue("@Id", item.Id);
-					command.Parameters.AddWithValue("@Summary", item.Summary);
-					command.Parameters.AddWithValue("@ChildYesNo", item.ChildYesNo);
-					command.Parameters.AddWithValue("@MD5Hash", item.MD5Hash);
-					command.Parameters.AddWithValue("@Frame", item.Frame);
-					command.Parameters.AddWithValue("@RunId", item.RunId);
-					command.Parameters.AddWithValue("@Hate", item.Hate);
-					command.Parameters.AddWithValue("@SelfHarm", item.SelfHarm);
-					command.Parameters.AddWithValue("@Violence", item.Violence);
-					command.Parameters.AddWithValue("@Sexual", item.Sexual);
-					//command.Parameters.AddWithValue("@ImageBase64", item.ImageBase64);
-					command.Parameters.AddWithValue("@RunDateTime", item.RunDateTime);
-
-					await command.ExecuteNonQueryAsync();
-				}
-				return item;
-			}
-			catch (Exception ex)
-			{
-				_logHelper.LogException(ex.Message, nameof(AzureSQLHelper), nameof(CreateFrameResult), ex);
-				return null;
-			}
+			return await ExecuteNonQueryAsync(query, item);
 		}
 
 		public async Task<IFrameResult?> InsertBase64(IFrameResult item)
 		{
+			string query = @"
+				INSERT INTO FrameBase64 (
+					Id,
+					Frame,
+					ImageBase64,
+					RunDateTime,
+					RunId
+				) VALUES (
+					@Id,
+					@Frame,
+					@ImageBase64,
+					@RunDateTime,
+					@RunId
+				)";
 
+			return await ExecuteNonQueryAsync(query, item);
+		}
+
+		#endregion
+
+		#region Private Methods
+
+		private async Task<IFrameResult?> ExecuteNonQueryAsync(string query, IFrameResult item)
+		{
 			try
 			{
 				using (SqlConnection connection = new(_connectionString))
 				{
 					await connection.OpenAsync();
 
-					string query = @"
-                        INSERT INTO FrameBase64 (
-                            Id,
-                            Frame,
-                            ImageBase64,
-							RunDateTime,
-							RunId
-                        ) VALUES (
-                            @Id,
-                            @Frame,
-                            @ImageBase64,
-							@RunDateTime,
-							@RunId
-                        )";
-
 					using SqlCommand command = new(query, connection);
 					command.Parameters.AddWithValue("@Id", item.Id);
 					command.Parameters.AddWithValue("@Frame", item.Frame);
 					command.Parameters.AddWithValue("@RunId", item.RunId);
-					command.Parameters.AddWithValue("@ImageBase64", item.ImageBase64);
 					command.Parameters.AddWithValue("@RunDateTime", item.RunDateTime);
+
+					if (query.Contains("FrameResults"))
+					{
+						command.Parameters.AddWithValue("@Summary", item.Summary);
+						command.Parameters.AddWithValue("@ChildYesNo", item.ChildYesNo);
+						command.Parameters.AddWithValue("@MD5Hash", item.MD5Hash);
+						command.Parameters.AddWithValue("@Hate", item.Hate);
+						command.Parameters.AddWithValue("@SelfHarm", item.SelfHarm);
+						command.Parameters.AddWithValue("@Violence", item.Violence);
+						command.Parameters.AddWithValue("@Sexual", item.Sexual);
+					}
+					else if (query.Contains("FrameBase64"))
+					{
+						command.Parameters.AddWithValue("@ImageBase64", item.ImageBase64);
+					}
 
 					await command.ExecuteNonQueryAsync();
 				}
@@ -118,12 +111,11 @@ namespace NovelCsamDetection.Helpers
 			}
 			catch (Exception ex)
 			{
-				_logHelper.LogException(ex.Message, nameof(AzureSQLHelper), nameof(CreateFrameResult), ex);
+				_logHelper.LogException(ex.Message, nameof(AzureSQLHelper), nameof(ExecuteNonQueryAsync), ex);
 				return null;
 			}
 		}
 
 		#endregion
-
 	}
 }

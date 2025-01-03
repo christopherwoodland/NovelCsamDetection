@@ -7,8 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NovelCsamDetection.Tests", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NovelCsam.Models", "NovelCsam.Models\NovelCsam.Models.csproj", "{B679C4EC-8238-43DC-96A1-E2BC42C1BB8F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NovelCsam.Console", "NovelCsam.Console\NovelCsam.Console.csproj", "{1725BAE6-9360-4764-9E9C-774A0E50C193}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovelCsam.UI.Console", "NovelCsam.UI.Console\NovelCsam.UI.Console.csproj", "{0E0DB500-81EF-479D-B482-46F43F262056}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NovelCsam.Helpers", "NovelCsam.Helpers\NovelCsam.Helpers.csproj", "{37257163-551C-49D4-9EDD-E50AB5AB656F}"
@@ -27,10 +25,6 @@ Global
 		{B679C4EC-8238-43DC-96A1-E2BC42C1BB8F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B679C4EC-8238-43DC-96A1-E2BC42C1BB8F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B679C4EC-8238-43DC-96A1-E2BC42C1BB8F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1725BAE6-9360-4764-9E9C-774A0E50C193}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1725BAE6-9360-4764-9E9C-774A0E50C193}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1725BAE6-9360-4764-9E9C-774A0E50C193}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1725BAE6-9360-4764-9E9C-774A0E50C193}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0E0DB500-81EF-479D-B482-46F43F262056}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0E0DB500-81EF-479D-B482-46F43F262056}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0E0DB500-81EF-479D-B482-46F43F262056}.Release|Any CPU.ActiveCfg = Release|Any CPU

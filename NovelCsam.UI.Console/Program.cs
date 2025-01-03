@@ -1,109 +1,88 @@
 ﻿internal class Program
 {
 	private const int FilesPerFolder = 100;
-	private static string GenerateFolderName(int folderIndex)
-	{
-		return $"Folder_{folderIndex}";
-	}
 
-	private static async Task<bool> SelectAndUploadImagesAsync(IVideoHelper app, string CNVIDEOS, string CNINPUT)
-	{
-		using FolderBrowserDialog folderBrowserDialog = new FolderBrowserDialog();
-		folderBrowserDialog.Description = "Select a folder containing images";
-		folderBrowserDialog.RootFolder = Environment.SpecialFolder.MyComputer;
+	private static string GenerateFolderName(int folderIndex) => $"Folder_{folderIndex}";
 
-		// Show the dialog and get the result
-		if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
+	private static async Task<bool> SelectAndUploadImagesAsync(IVideoHelper videoHelper, string containerName, string inputFolder)
+	{
+		using var folderBrowserDialog = new FolderBrowserDialog
 		{
-			// Get the selected folder path
-			string selectedFolderPath = folderBrowserDialog.SelectedPath;
-			Console.WriteLine($"----------------------------------------------------------------------------\n");
-			Console.WriteLine($"Selected folder: {selectedFolderPath}");
+			Description = "Select a folder containing images",
+			RootFolder = Environment.SpecialFolder.MyComputer
+		};
 
-			// Get all image files in the selected folder
-			var imageFiles = Directory.GetFiles(selectedFolderPath, "*.*")
-									  .Where(file => file.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-													 file.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
-													 file.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
-													 file.EndsWith(".bmp", StringComparison.OrdinalIgnoreCase) ||
-													 file.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ||
-													 file.EndsWith(".tiff", StringComparison.OrdinalIgnoreCase))
-									  .ToList();
-
-			if (imageFiles.Count > 0)
-			{
-				Console.WriteLine("Enter a custom folder name please...");
-				var folderName = Console.ReadLine();
-				int folderIndex = 1;
-				string currentFolderName = GenerateFolderName(folderIndex);
-				string timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-
-				var uploadTasks = new List<Task>();
-
-				for (int i = 0; i < imageFiles.Count; i++)
-				{
-					if (i > 0 && i % FilesPerFolder == 0)
-					{
-						folderIndex++;
-						currentFolderName = GenerateFolderName(folderIndex);
-					}
-
-					string imageFile = imageFiles[i];
-					Console.WriteLine($"Selected file: {imageFile}");
-
-					// Run the upload operation in a separate task
-					var uploadTask = Task.Run(async () =>
-					{
-						var ret = await app.UploadFileToBlobAsync(CNVIDEOS, CNINPUT, imageFile, currentFolderName, true, timestamp, folderName);
-						Console.WriteLine($"Selected file Upload Path: {ret}");
-					});
-
-					uploadTasks.Add(uploadTask);
-				}
-
-				// Wait for all upload tasks to complete
-				await Task.WhenAll(uploadTasks);
-				return true;
-			}
-			else
-			{
-				Console.WriteLine("No image files found in the selected folder.");
-				return false;
-			}
-		}
-		else
+		if (folderBrowserDialog.ShowDialog() != DialogResult.OK)
 		{
 			Console.WriteLine("No folder selected.");
 			return false;
 		}
+
+		string selectedFolderPath = folderBrowserDialog.SelectedPath;
+		Console.WriteLine($"----------------------------------------------------------------------------\n");
+		Console.WriteLine($"Selected folder: {selectedFolderPath}");
+
+		var imageFiles = Directory.GetFiles(selectedFolderPath, "*.*")
+								  .Where(file => new[] { ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff" }
+								  .Any(ext => file.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
+								  .ToList();
+
+		if (imageFiles.Count == 0)
+		{
+			Console.WriteLine("No image files found in the selected folder.");
+			return false;
+		}
+
+		Console.WriteLine("Enter a custom folder name please...");
+		var customFolderName = Console.ReadLine();
+		int folderIndex = 1;
+		string currentFolderName = GenerateFolderName(folderIndex);
+		string timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+
+		var uploadTasks = imageFiles.Select((imageFile, index) =>
+		{
+			if (index > 0 && index % FilesPerFolder == 0)
+			{
+				folderIndex++;
+				currentFolderName = GenerateFolderName(folderIndex);
+			}
+
+			Console.WriteLine($"Selected file: {imageFile}");
+
+			return Task.Run(async () =>
+			{
+				var uploadPath = await videoHelper.UploadFileToBlobAsync(containerName, inputFolder, imageFile, currentFolderName, true, timestamp, customFolderName);
+				Console.WriteLine($"Selected file Upload Path: {uploadPath}");
+			});
+		}).ToList();
+
+		await Task.WhenAll(uploadTasks);
+		return true;
 	}
+
 	private static string PrintMenu()
 	{
-		string choice = "";
+		string choice;
 		do
 		{
 			Console.WriteLine("Novel CSAM Detection Menu");
 			Console.WriteLine("###############################################");
 			Console.WriteLine("#####..1.) Upload Video to Azure..........#####");
 			Console.WriteLine("#####..2.) Upload Images to Azure.........#####");
-			//Console.WriteLine("#####..3.) Segment Video..................#####");
 			Console.WriteLine("#####..3.) Extract Frames.................#####");
 			Console.WriteLine("#####..4.) Run Safety Analysis............#####");
-			//Console.WriteLine("#####..5.) Upload and Run Safety Analysis.#####");
 			Console.WriteLine("#####..X.) Exit...........................#####");
 			Console.WriteLine("###############################################");
 
-			Console.WriteLine("Please enter a valid choice 1 - 6, or X to exit");
+			Console.WriteLine("Please enter a valid choice 1 - 4, or X to exit");
 			choice = Console.ReadLine()?.ToLower(System.Globalization.CultureInfo.CurrentCulture) ?? "";
-		} while (choice != "1" && choice != "2"
-				&& choice != "3" && choice != "4" && choice != "5" && choice != "6" && choice != "x");
+		} while (!new[] { "1", "2", "3", "4", "x" }.Contains(choice));
 
 		return choice;
 	}
+
 	private static void ConfigureServices(IServiceCollection services)
 	{
-		// Register all classes from NovelCsamDetection.Helper
-		// Add Application Insights telemetry with the connection string
 		services.AddApplicationInsightsTelemetryWorkerService(options =>
 		{
 			options.ConnectionString = Environment.GetEnvironmentVariable("APP_INSIGHTS_CONNECTION_STRING");
@@ -111,185 +90,66 @@
 
 		services.AddTransient<IAzureSQLHelper, AzureSQLHelper>();
 		services.AddScoped<ILogHelper, LogHelper>();
-		services.AddScoped<IContentSafteyHelper, ContentSafteyHelper>();
+		services.AddScoped<IContentSafetyHelper, ContentSafetyHelper>();
 		services.AddScoped<IStorageHelper, StorageHelper>();
 		services.AddTransient<IVideoHelper, VideoHelper>();
-		//services.AddTransient<ICosmosDBHelper, CosmosDBHelper>();
 	}
 
 	private static void SetEnvVariables()
 	{
-			}
+		
+	}
 
 	[STAThread]
 	public static void Main(string[] args)
 	{
 		try
 		{
-			const string CNVIDEOS = "videos";
-			const string CNINPUT = "input";
-			const string CNEXTRACTED = "extracted";
-			const string CNRESULTS = "results";
+			const string ContainerVideos = "videos";
+			const string ContainerInput = "input";
+			const string ContainerExtracted = "extracted";
+			const string ContainerResults = "results";
 			SetEnvVariables();
 
-			// Ensure the application runs in STA mode
 			Application.SetHighDpiMode(HighDpiMode.SystemAware);
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
 			var serviceCollection = new ServiceCollection();
 			ConfigureServices(serviceCollection);
 
-			// Resolve and run the main application
 			var serviceProvider = serviceCollection.BuildServiceProvider();
-			var app = serviceProvider.GetService<IVideoHelper>();
-			var sth = serviceProvider.GetService<IStorageHelper>();
+			var videoHelper = serviceProvider.GetService<IVideoHelper>();
+			var storageHelper = serviceProvider.GetService<IStorageHelper>();
 
-			if (app != null && sth != null)
+			if (videoHelper == null || storageHelper == null) return;
+
+			string choice = PrintMenu();
+			while (choice != "x")
 			{
-				string choice = "";
-				choice = PrintMenu();
-				while (choice != "x")
+				switch (choice)
 				{
-					switch (choice)
-					{
-						case "1": //Upload Video to Blob
-							using (OpenFileDialog openFileDialog = new())
-							{
-								openFileDialog.InitialDirectory = "C:\\";
-								openFileDialog.Filter = "All Video Files|*.mp4;*.avi;*.mov;*.wmv;*.flv;*.mkv;*.webm;*.mpeg;*.mpg|MP4 Files (*.mp4)|*.mp4|AVI Files (*.avi)|*.avi|MOV Files (*.mov)|*.mov|WMV Files (*.wmv)|*.wmv|FLV Files (*.flv)|*.flv|MKV Files (*.mkv)|*.mkv|WebM Files (*.webm)|*.webm|MPEG Files (*.mpeg;*.mpg)|*.mpeg;*.mpg|All files (*.*)|*.*";
-								openFileDialog.FilterIndex = 1;
-								openFileDialog.RestoreDirectory = true;
-								if (openFileDialog.ShowDialog() == DialogResult.OK)
-								{
-									// Get the selected file path
-									string selectedFilePath = openFileDialog.FileName;
-									Console.WriteLine($"----------------------------------------------------------------------------\n");
-									Console.WriteLine($"Selected file: {selectedFilePath}");
-									var ret01 = app.UploadFileToBlobAsync(CNVIDEOS, CNINPUT, selectedFilePath);
-									Console.WriteLine($"Selected file Upload Path: {ret01.Result}");
-									Console.WriteLine($"----------------------------------------------------------------------------\r\n");
-								}
-								else
-								{
-									Console.WriteLine("No file selected.");
-								}
-							}
-							break;
-						case "2": //Upload Images to Blob
-							var ret = SelectAndUploadImagesAsync(app, CNVIDEOS, CNEXTRACTED);
-							if (ret.Result)
-							{
-								Console.WriteLine("****************************************************");
-								Console.WriteLine($"Image files uploaded!");
-								Console.WriteLine("****************************************************");
-							}
-							break;
-						case "3":
-							var blobList = sth?.ListBlobsInFolderWithResizeAsync(CNVIDEOS, CNINPUT, 3, false);
-							if (blobList?.Result.Count > 0)
-							{
-								var menuItems = new Dictionary<int, string>();
-								int cnt = 1;
-								foreach (var item in blobList.Result) {
-									menuItems.Add(cnt, item.Key);
-									cnt++;
-								}
-								int chosenDirKey = -1;
-								do
-								{
-									Console.WriteLine($"----------------------------------------------------------------------");
-									foreach (var item in menuItems)
-									{
-										Console.WriteLine($"({item.Key}): {item.Value}");
-									}
-									Console.WriteLine($"----------------------------------------------------------------------");
-									Console.WriteLine("Choose which file...e.g. 1");
-									var userInput = Console.ReadLine();
-									bool isInteger = int.TryParse(userInput, out int result);
-									if (!isInteger)
-									{
-										chosenDirKey = -1;
-									}
-									else
-									{
-										chosenDirKey = result;
-									}
-								} while (!menuItems.ContainsKey(chosenDirKey));
-								string? chosenDirValue = "";
-								menuItems.TryGetValue(chosenDirKey, out chosenDirValue);
-								if (!string.IsNullOrEmpty(chosenDirValue))
-								{
-
-									//var runId = app.UploadFrameResultsAsync(CNVIDEOS, chosenDirValue, CNRESULTS, true);
-									var fileName = Path.GetFileName(chosenDirValue);
-									var folderPath = Path.GetDirectoryName(chosenDirValue).Replace("\\","/");
-									var extractedFramesDone = app.UploadExtractedFramesToBlobAsync(1, fileName, CNVIDEOS, folderPath, CNEXTRACTED, fileName);
-
-
-									if (extractedFramesDone.Result)
-									{
-										Console.WriteLine("************************************************************");
-										Console.WriteLine($"{chosenDirValue} is done extracting!");
-										Console.WriteLine("************************************************************");
-									}
-								}
-							}
-
-							break;
-						case "4": //Analyse extracted images/frames
-							var dirList = sth?.ListDirectoriesInFolderAsync(CNVIDEOS, CNEXTRACTED, 2);
-							if (dirList?.Result.Count > 0)
-							{
-								int chosenDirKey = -1;
-								do
-								{
-									Console.WriteLine($"----------------------------------------------------------------------");
-									foreach (var dir in dirList.Result)
-									{
-										Console.WriteLine($"({dir.Key}): {dir.Value}");
-									}
-									Console.WriteLine($"----------------------------------------------------------------------");
-									Console.WriteLine("Choose which directory...e.g. 1");
-									var userInput = Console.ReadLine();
-									bool isInteger = int.TryParse(userInput, out int result);
-									if (!isInteger)
-									{
-										chosenDirKey = -1;
-									}
-									else
-									{
-										chosenDirKey = result;
-									}
-								} while (!dirList.Result.ContainsKey(chosenDirKey));
-								string? chosenDirValue = "";
-								dirList.Result.TryGetValue(chosenDirKey, out chosenDirValue);
-								if (!string.IsNullOrEmpty(chosenDirValue))
-								{
-
-									var runId = app.UploadFrameResultsAsync(CNVIDEOS, chosenDirValue, CNRESULTS, true);
-									if (!string.IsNullOrEmpty(runId.Result))
-									{
-										Console.WriteLine("****************************************************");
-										Console.WriteLine($"{chosenDirValue} is done running! RunId: {runId.Result}");
-										Console.WriteLine("****************************************************");
-									}
-								}
-							}
-							else
-							{
-								Console.WriteLine("There are no directories containing images for processing. \r\n" +
-									"Try extracting some frames or uploading some images.");
-							}
-							break;
-						case "5": break;
-						default: break;
-
-					}
-					choice = PrintMenu();
+					case "1":
+						UploadVideo(videoHelper, ContainerVideos, ContainerInput);
+						break;
+					case "2":
+						var uploadImagesResult = SelectAndUploadImagesAsync(videoHelper, ContainerVideos, ContainerExtracted);
+						if (uploadImagesResult.Result)
+						{
+							Console.WriteLine("****************************************************");
+							Console.WriteLine($"Image files uploaded!");
+							Console.WriteLine("****************************************************");
+						}
+						break;
+					case "3":
+						ExtractFrames(videoHelper, storageHelper, ContainerVideos, ContainerInput, ContainerExtracted);
+						break;
+					case "4":
+						RunSafetyAnalysis(videoHelper, storageHelper, ContainerVideos, ContainerExtracted, ContainerResults);
+						break;
 				}
+				choice = PrintMenu();
 			}
 		}
-
 		catch (Exception ex)
 		{
 			var serviceCollection = new ServiceCollection();
@@ -297,6 +157,107 @@
 			var serviceProvider = serviceCollection.BuildServiceProvider();
 			var logHelper = serviceProvider.GetService<ILogHelper>();
 			logHelper?.LogException($"An error occurred during run in main: {ex.Message}", nameof(Program), nameof(Main), ex);
+		}
+	}
+
+	private static void UploadVideo(IVideoHelper videoHelper, string containerName, string inputFolder)
+	{
+		using var openFileDialog = new OpenFileDialog
+		{
+			InitialDirectory = "C:\\",
+			Filter = "All Video Files|*.mp4;*.avi;*.mov;*.wmv;*.flv;*.mkv;*.webm;*.mpeg;*.mpg|MP4 Files (*.mp4)|*.mp4|AVI Files (*.avi)|*.avi|MOV Files (*.mov)|*.mov|WMV Files (*.wmv)|*.wmv|FLV Files (*.flv)|*.flv|MKV Files (*.mkv)|*.mkv|WebM Files (*.webm)|*.webm|MPEG Files (*.mpeg;*.mpg)|*.mpeg;*.mpg|All files (*.*)|*.*",
+			FilterIndex = 1,
+			RestoreDirectory = true
+		};
+
+		if (openFileDialog.ShowDialog() != DialogResult.OK)
+		{
+			Console.WriteLine("No file selected.");
+			return;
+		}
+
+		string selectedFilePath = openFileDialog.FileName;
+		Console.WriteLine($"----------------------------------------------------------------------------\n");
+		Console.WriteLine($"Selected file: {selectedFilePath}");
+		var uploadResult = videoHelper.UploadFileToBlobAsync(containerName, inputFolder, selectedFilePath);
+		Console.WriteLine($"Selected file Upload Path: {uploadResult.Result}");
+		Console.WriteLine($"----------------------------------------------------------------------------\r\n");
+	}
+
+	private static void ExtractFrames(IVideoHelper videoHelper, IStorageHelper storageHelper, string containerName, string inputFolder, string extractedFolder)
+	{
+		var blobList = storageHelper?.ListBlobsInFolderWithResizeAsync(containerName, inputFolder, 3, false);
+		if (blobList?.Result.Count > 0)
+		{
+			var menuItems = blobList.Result.Select((item, index) => new { Key = index + 1, Value = item.Key }).ToDictionary(x => x.Key, x => x.Value);
+			int chosenDirKey;
+			do
+			{
+				Console.WriteLine($"----------------------------------------------------------------------");
+				foreach (var item in menuItems)
+				{
+					Console.WriteLine($"({item.Key}): {item.Value}");
+				}
+				Console.WriteLine($"----------------------------------------------------------------------");
+				Console.WriteLine("Choose which file to extract frames from...e.g. 1");
+				var userInput = Console.ReadLine();
+				bool isInteger = int.TryParse(userInput, out int result);
+				chosenDirKey = isInteger ? result : -1;
+			} while (!menuItems.ContainsKey(chosenDirKey));
+			string chosenDirValue = menuItems[chosenDirKey];
+
+			if (!string.IsNullOrEmpty(chosenDirValue))
+			{
+				var fileName = Path.GetFileName(chosenDirValue);
+				var folderPath = Path.GetDirectoryName(chosenDirValue).Replace("\\", "/");
+				var extractedFramesDone = videoHelper.UploadExtractedFramesToBlobAsync(1, fileName, containerName, folderPath, extractedFolder, fileName);
+
+				if (extractedFramesDone.Result)
+				{
+					Console.WriteLine("************************************************************");
+					Console.WriteLine($"{chosenDirValue} is done extracting!");
+					Console.WriteLine("************************************************************");
+				}
+			}
+		}
+	}
+
+	private static void RunSafetyAnalysis(IVideoHelper videoHelper, IStorageHelper storageHelper, string containerName, string extractedFolder, string resultsFolder)
+	{
+		var dirList = storageHelper?.ListDirectoriesInFolderAsync(containerName, extractedFolder, 2);
+		if (dirList?.Result.Count > 0)
+		{
+			int chosenDirKey;
+			do
+			{
+				Console.WriteLine($"----------------------------------------------------------------------");
+				foreach (var dir in dirList.Result)
+				{
+					Console.WriteLine($"({dir.Key}): {dir.Value}");
+				}
+				Console.WriteLine($"----------------------------------------------------------------------");
+				Console.WriteLine("Choose which directory...e.g. 1");
+				var userInput = Console.ReadLine();
+				bool isInteger = int.TryParse(userInput, out int result);
+				chosenDirKey = isInteger ? result : -1;
+			} while (!dirList.Result.ContainsKey(chosenDirKey));
+			string chosenDirValue = dirList.Result[chosenDirKey];
+
+			if (!string.IsNullOrEmpty(chosenDirValue))
+			{
+				var runId = videoHelper.UploadFrameResultsAsync(containerName, chosenDirValue, resultsFolder, true);
+				if (!string.IsNullOrEmpty(runId.Result))
+				{
+					Console.WriteLine("****************************************************");
+					Console.WriteLine($"{chosenDirValue} is done running! RunId: {runId.Result}");
+					Console.WriteLine("****************************************************");
+				}
+			}
+		}
+		else
+		{
+			Console.WriteLine("There are no directories containing images for processing. \r\n" +
+				"Try extracting some frames or uploading some images.");
 		}
 	}
 }
