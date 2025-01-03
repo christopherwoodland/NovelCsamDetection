@@ -9,22 +9,6 @@
 				// Setup Dependency Injection
 				var serviceCollection = new ServiceCollection();
 				ConfigureServices(serviceCollection);
-				Environment.SetEnvironmentVariable("AZURE_SQL_CONNECTION_STRING", "Server=tcp:df-sql-server-eastus-001.database.windows.net,1433;Initial Catalog=df-sql-eastus-001;Persist Security Info=False;User ID=cwoodland;Password=django20221!!;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;");
-				Environment.SetEnvironmentVariable("CONTENT_SAFETY_CONNECTION_STRING", "https://cwcontentsafetyeastus2001.cognitiveservices.azure.com/");
-				Environment.SetEnvironmentVariable("CONTENT_SAFETY_CONNECTION_KEY", "2b69c5c74f0642c9bc5cf713111e5bf9");
-				Environment.SetEnvironmentVariable("COSMOS_DB_CONNECTION_STRING", "AccountEndpoint=https://igital-forensics-eastus-001.documents.azure.com:443/;AccountKey=QGcPlwvi2dq5gFSJheXIF9rupVC1vh6bQqqucgkuU4cGh7O5bQCsV7FdZZS2wFJWyNetwhouv27xACDbTrvj2A==;");
-				Environment.SetEnvironmentVariable("COSMOS_DB_DATABASE_NAME", "Forensics");
-				Environment.SetEnvironmentVariable("COSMOS_DB_CONTAINER_NAME", "Images");
-				Environment.SetEnvironmentVariable("STORAGE_ACCOUNT_NAME", "digitalforensicsstg");
-				Environment.SetEnvironmentVariable("STORAGE_ACCOUNT_KEY", "IGnMXV0C6jZrPX3RapNgHDtfY0OI8M20Y9K+qOG6Zm0mvvRdzUJOHHIkae0VjTKoIWRugb82cFi7+AStRuP/MQ==");
-				Environment.SetEnvironmentVariable("STORAGE_ACCOUNT_URL", "https://digitalforensicsstg.dfs.core.windows.net");
-				Environment.SetEnvironmentVariable("OPEN_AI_DEPLOYMENT_NAME", "gpt-4o");
-				Environment.SetEnvironmentVariable("OPEN_AI_KEY", "89a35462495b4448b433e57d092397e3");
-				Environment.SetEnvironmentVariable("OPEN_AI_ENDPOINT", "https://openai-sesame-eastus-001.openai.azure.com/");
-				Environment.SetEnvironmentVariable("OPEN_AI_MODEL", "gpt-4o");
-				Environment.SetEnvironmentVariable("APP_INSIGHTS_CONNECTION_STRING", "e6f138fa-f1d7-43d3-94e4-a7373d488218;IngestionEndpoint=https://eastus2-3.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus2.livediagnostics.monitor.azure.com/;ApplicationId=11096425-5af5-4abe-b1b6-d2cf72715c1a");
-
-
 				if (args.Length != 0 && args.Length == 10)
 				{
 					int frameInterval = Convert.ToInt16(args[0]);
@@ -60,7 +44,7 @@
 								await app.UploadFrameResultsAsync(containerNameVideos, containerFolderPathInput, containerFolderPathResults, true);
 								break;
 							case 5:
-								await app.UploadVideoToBlobAsync(containerNameVideos, containerFolderPathInput, sourceFileNameOrPath);
+								await app.UploadFileToBlobAsync(containerNameVideos, containerFolderPathInput, sourceFileNameOrPath);
 								break;
 
 							default: break;

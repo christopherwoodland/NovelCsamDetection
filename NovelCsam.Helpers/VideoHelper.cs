@@ -1,6 +1,4 @@
-﻿using System.Net;
-
-namespace NovelCsamDetection.Helpers
+﻿namespace NovelCsamDetection.Helpers
 {
 	public class VideoHelper : IVideoHelper
 	{
@@ -39,7 +37,7 @@ namespace NovelCsamDetection.Helpers
 			_ash = ash;
 		}
 
-		public async Task<string> UploadVideoToBlobAsync(string containerName, string containerFolderPath, string sourceFileNameOrPath, string containerFolderPostfix = "", bool isImages = false, string timestampIn = "", string customName = "")
+		public async Task<string> UploadFileToBlobAsync(string containerName, string containerFolderPath, string sourceFileNameOrPath, string containerFolderPostfix = "", bool isImages = false, string timestampIn = "", string customName = "")
 		{
 			string timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
 			if (!string.IsNullOrEmpty(timestampIn))
@@ -68,9 +66,9 @@ namespace NovelCsamDetection.Helpers
 
 			return ret;
 		}
-		public async Task UploadFrameResultsAsync(string containerName, string containerFolderPath, string containerFolderPathResults, bool withBase64ofImage = false)
+		public async Task<string> UploadFrameResultsAsync(string containerName, string containerFolderPath, string containerFolderPathResults, bool withBase64ofImage = false)
 		{
-			var list = await _sth.ListBlobsInFolderWithResizeAsync(containerName, containerFolderPath);
+			var list = await _sth.ListBlobsInFolderWithResizeAsync(containerName, containerFolderPath, 3);
 			Dictionary<string, IFrameResult>? ret = [];
 			var runId = Guid.NewGuid().ToString();
 			var runDateTime = DateTime.UtcNow;
@@ -119,61 +117,8 @@ namespace NovelCsamDetection.Helpers
 				await _ash.CreateFrameResult(newItem);
 				await _ash.InsertBase64(newItem);
 			}
+			return runId;
 		}
-
-
-		//public async Task UploadFrameResultsToBlobAsync(string containerName, string containerFolderPath, string containerFolderPathResults, bool withBase64ofImage = false)
-		//{
-		//	var list = await _sth.ListBlobsInFolderAsync(containerName, containerFolderPath);
-		//	Dictionary<string, IFrameResult>? ret = [];
-		//	var runId = Guid.NewGuid().ToString();
-		//	var runDateTime = DateTime.UtcNow;
-		//	foreach (var item in list)
-		//	{
-		//		AnalyzeImageResult? air = GetContentSafteyDetails(item.Value);
-		//		var summary = await SummarizeImageAsync(item.Value, "Can you do a detail analysis and tell me all the minute details about this image. Use no more than 450 words!!!");
-		//		var childYesNo = await SummarizeImageAsync(item.Value, "Is there a younger person or child in this image? If you can't make a determination ANSWER No, ONLY ANSWER Yes or No!!");
-		//		var md5Hash = CreateMD5Hash(item.Value);
-		//		var newItem = new FrameResult
-		//		{
-		//			MD5Hash = md5Hash,
-		//			Summary = summary,
-		//			RunId = runId,
-		//			Id = Guid.NewGuid().ToString(),
-		//			Frame = item.Key,
-		//			ChildYesNo = childYesNo,
-		//			ImageBase64 = withBase64ofImage ? ConvertToBase64(item.Value) : "",
-		//			RunDateTime = runDateTime
-		//		};
-
-		//		if (air != null)
-		//		{
-		//			foreach (var citem in air.CategoriesAnalysis)
-		//			{
-		//				if (citem.Category.ToString().ToLowerInvariant() == HATE)
-		//				{
-		//					newItem.Hate = (int)citem.Severity;
-		//				}
-		//				else if (citem.Category.ToString().ToLowerInvariant() == SELF_HARM)
-		//				{
-		//					newItem.SelfHarm = (int)citem.Severity;
-		//				}
-		//				else if (citem.Category.ToString().ToLowerInvariant() == VIOLENCE)
-		//				{
-		//					newItem.Violence = (int)citem.Severity;
-		//				}
-		//				else if (citem.Category.ToString().ToLowerInvariant() == SEXUAL)
-		//				{
-		//					newItem.Sexual = (int)citem.Severity;
-		//				}
-		//			}
-		//		}
-		//		//ret.Add(item.Key, newItem);
-		//		//_cdbh.CreateFrameResult(newItem); //CosmosDB Write
-		//		await _ash.CreateFrameResult(newItem);
-		//		await _ash.InsertBase64(newItem);
-		//	}
-		//}
 		public string ConvertToBase64(BinaryData imageData)
 		{
 			byte[] imageBytes = imageData.ToArray();
@@ -235,7 +180,7 @@ namespace NovelCsamDetection.Helpers
 			return _csh.AnalyzeImage(bd);
 		}
 
-		public async Task UploadExtractedFramesToBlobAsync(int frameInterval, string fileName, string containerName, string containerFolderPath, string containerFolderPathExtracted, string sourceFileNameOrPath)
+		public async Task<bool> UploadExtractedFramesToBlobAsync(int frameInterval, string fileName, string containerName, string containerFolderPath, string containerFolderPathExtracted, string sourceFileNameOrPath)
 		{
 			// Generate a new GUID
 			string guid = Guid.NewGuid().ToString();
@@ -262,6 +207,7 @@ namespace NovelCsamDetection.Helpers
 				_logHelper.LogInformation($"Uploaded {fileNameFrame} to {timestamp}", nameof(VideoHelper), nameof(UploadExtractedFramesToBlobAsync));
 
 			}
+			return true;
 		}
 		public async Task UploadSegmentVideoToBlobAsync(int splitTime, string fileName, string containerName, string containerFolderPath, string containerFolderPathSegmented)
 		{
@@ -314,8 +260,17 @@ namespace NovelCsamDetection.Helpers
 						return "image/tiff";
 					if (ImageFormat.Icon.Equals(format))
 						return "image/x-icon";
-					// Add more formats if needed
-					return "application/octet-stream"; // Default MIME type if format is unknown
+					if (ImageFormat.Emf.Equals(format))
+						return "image/emf";
+					if (ImageFormat.Exif.Equals(format))
+						return "image/exif";
+					if (ImageFormat.Wmf.Equals(format))
+						return "image/wmf";
+					if (ImageFormat.MemoryBmp.Equals(format))
+						return "image/bmp"; // MemoryBmp is treated as BMP
+
+					// Default to a generic binary stream if format is unknown
+					return "application/octet-stream";
 				}
 			}
 		}

@@ -27,6 +27,8 @@ namespace NovelCsamDetection.Helpers
 		}
 
 		#region Private Methods
+
+
 		private async Task<BinaryData> GetFileAsBinaryDataWithResizeAsync(string fileName, string containerName, string folderPath, int maxSize)
 		{
 			DataLakeFileSystemClient fileSystemClient = _serviceClient.GetFileSystemClient(containerName);
@@ -39,18 +41,92 @@ namespace NovelCsamDetection.Helpers
 			await downloadResponse.Value.Content.CopyToAsync(memoryStream);
 			memoryStream.Position = 0; // Reset the stream position to the beginning
 
+
 			if (memoryStream.Length >= maxSize)
 			{
+				using var originalImage02 = Image.FromStream(memoryStream);
+				var resizedImage02 = ResizeImage(originalImage02, maxSize);
+				using var resizedStream02 = new MemoryStream();
+				resizedImage02.Save(resizedStream02, ImageFormat.Jpeg);
+				return new BinaryData(resizedStream02.ToArray());
+			}
+			else
+			{
 				using var originalImage = Image.FromStream(memoryStream);
-				var resizedImage = ResizeImage(originalImage, maxSize);
+				var resizedImage = ResizeImageIfNeeded(originalImage, 50, 50, 2048, 2048);
+
 				using var resizedStream = new MemoryStream();
 				resizedImage.Save(resizedStream, ImageFormat.Jpeg);
 				return new BinaryData(resizedStream.ToArray());
 			}
-
-			return new BinaryData(memoryStream.ToArray());
 		}
 
+		private async Task<BinaryData> GetFileAsBinaryDataAsync(string fileName, string containerName, string folderPath)
+		{
+			DataLakeFileSystemClient fileSystemClient = _serviceClient.GetFileSystemClient(containerName);
+			DataLakeDirectoryClient directoryClient = fileSystemClient.GetDirectoryClient(folderPath);
+			DataLakeFileClient fileClient = directoryClient.GetFileClient(Path.GetFileName(fileName));
+
+			Azure.Response<FileDownloadInfo> downloadResponse = await fileClient.ReadAsync();
+
+			using var memoryStream = new MemoryStream();
+			await downloadResponse.Value.Content.CopyToAsync(memoryStream);
+			memoryStream.Position = 0; // Reset the stream position to the beginning
+			return new BinaryData(memoryStream.ToArray());
+
+		}
+		private Image ResizeImageIfNeeded(Image originalImage, int minWidth, int minHeight, int maxWidth, int maxHeight)
+		{
+			int width = originalImage.Width;
+			int height = originalImage.Height;
+
+			if (width < minWidth || height < minHeight || width > maxWidth || height > maxHeight)
+			{
+				int newWidth = width;
+				int newHeight = height;
+
+				if (width < minWidth || height < minHeight)
+				{
+					newWidth = Math.Max(width, minWidth);
+					newHeight = Math.Max(height, minHeight);
+				}
+
+				if (width > maxWidth || height > maxHeight)
+				{
+					newWidth = Math.Min(width, maxWidth);
+					newHeight = Math.Min(height, maxHeight);
+				}
+
+				return ResizeImage(originalImage, newWidth, newHeight);
+			}
+
+			return originalImage;
+		}
+
+		private Image ResizeImage(Image image, int width, int height)
+		{
+			var destRect = new Rectangle(0, 0, width, height);
+			var destImage = new Bitmap(width, height);
+
+			destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+
+			using (var graphics = Graphics.FromImage(destImage))
+			{
+				graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
+				graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+				graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+				graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+				graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+
+				using (var wrapMode = new ImageAttributes())
+				{
+					wrapMode.SetWrapMode(System.Drawing.Drawing2D.WrapMode.TileFlipXY);
+					graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
+				}
+			}
+
+			return destImage;
+		}
 		private Image ResizeImage(Image image, int maxSize)
 		{
 			int newWidth;
@@ -79,19 +155,19 @@ namespace NovelCsamDetection.Helpers
 			return resizedImage;
 		}
 
-		private async Task<BinaryData> GetFileAsBinaryDataAsync(string fileName, string containerName, string folderPath)
-		{
-			DataLakeFileSystemClient fileSystemClient = _serviceClient.GetFileSystemClient(containerName);
-			DataLakeDirectoryClient directoryClient = fileSystemClient.GetDirectoryClient(folderPath);
-			DataLakeFileClient fileClient = directoryClient.GetFileClient(Path.GetFileName((fileName)));
+		//private async Task<BinaryData> GetFileAsBinaryDataAsync(string fileName, string containerName, string folderPath)
+		//{
+		//	DataLakeFileSystemClient fileSystemClient = _serviceClient.GetFileSystemClient(containerName);
+		//	DataLakeDirectoryClient directoryClient = fileSystemClient.GetDirectoryClient(folderPath);
+		//	DataLakeFileClient fileClient = directoryClient.GetFileClient(Path.GetFileName((fileName)));
 
-			Azure.Response<FileDownloadInfo> downloadResponse = await fileClient.ReadAsync();
+		//	Azure.Response<FileDownloadInfo> downloadResponse = await fileClient.ReadAsync();
 
-			using var memoryStream = new MemoryStream();
-			await downloadResponse.Value.Content.CopyToAsync(memoryStream);
-			memoryStream.Position = 0; // Reset the stream position to the beginning
-			return new BinaryData(memoryStream.ToArray());
-		}
+		//	using var memoryStream = new MemoryStream();
+		//	await downloadResponse.Value.Content.CopyToAsync(memoryStream);
+		//	memoryStream.Position = 0; // Reset the stream position to the beginning
+		//	return new BinaryData(memoryStream.ToArray());
+		//}
 
 		#endregion
 
@@ -164,60 +240,108 @@ namespace NovelCsamDetection.Helpers
 			}
 		}
 
-		private class IndexHolder
-		{
-			public int Index { get; set; }
-		}
-		public async Task<Dictionary<string, BinaryData>> ListBlobsInFolderWithResizeAsync(string containerName, string folderPath)
+		
+		//public async Task<Dictionary<string, BinaryData>> ListBlobsInFolderWithResizeAsync(string containerName, string folderPath)
+		//{
+		//	var ret = new Dictionary<string, BinaryData>();
+		//	try
+		//	{
+		//		DataLakeFileSystemClient fileSystemClient = _serviceClient.GetFileSystemClient(containerName);
+		//		DataLakeDirectoryClient directoryClient = fileSystemClient.GetDirectoryClient(folderPath);
+
+		//		await foreach (PathItem pathItem in directoryClient.GetPathsAsync())
+		//		{
+		//			if ((bool)!pathItem.IsDirectory)
+		//			{
+		//				var binaryData = await GetFileAsBinaryDataWithResizeAsync(pathItem.Name, containerName, folderPath, 4194304);
+		//				ret.Add(pathItem.Name, binaryData);
+		//			}
+		//			else { 
+		//			}
+		//		}
+		//	}
+		//	catch (Exception ex)
+		//	{
+		//		_logHelper.LogException($"An error occurred listing blobs: {ex.Message}", nameof(StorageHelper), nameof(ListBlobsInFolderAsync), ex);
+		//		throw;
+		//	}
+
+		//	return ret;
+		//}
+
+		public async Task<Dictionary<string, BinaryData>> ListBlobsInFolderWithResizeAsync(string containerName, string folderPath, int maxDepth = 10, bool resize = true)
 		{
 			var ret = new Dictionary<string, BinaryData>();
 			try
 			{
 				DataLakeFileSystemClient fileSystemClient = _serviceClient.GetFileSystemClient(containerName);
-				DataLakeDirectoryClient directoryClient = fileSystemClient.GetDirectoryClient(folderPath);
-
-				await foreach (PathItem pathItem in directoryClient.GetPathsAsync())
-				{
-					if ((bool)!pathItem.IsDirectory)
-					{
-						var binaryData = await GetFileAsBinaryDataWithResizeAsync(pathItem.Name, containerName, folderPath, 4194304);
-						ret.Add(pathItem.Name, binaryData);
-					}
-				}
+				await ListBlobsRecursive(fileSystemClient, folderPath, ret, 1, maxDepth, containerName, resize);
 			}
 			catch (Exception ex)
 			{
-				_logHelper.LogException($"An error occurred listing blobs: {ex.Message}", nameof(StorageHelper), nameof(ListBlobsInFolderAsync), ex);
+				_logHelper.LogException($"An error occurred listing blobs: {ex.Message}", nameof(StorageHelper), nameof(ListBlobsInFolderWithResizeAsync), ex);
 				throw;
 			}
 
 			return ret;
 		}
-		public async Task<Dictionary<string, BinaryData>> ListBlobsInFolderAsync(string containerName, string folderPath)
-		{
-			var ret = new Dictionary<string, BinaryData>();
-			try
-			{
-				DataLakeFileSystemClient fileSystemClient = _serviceClient.GetFileSystemClient(containerName);
-				DataLakeDirectoryClient directoryClient = fileSystemClient.GetDirectoryClient(folderPath);
 
-				await foreach (PathItem pathItem in directoryClient.GetPathsAsync())
+		private async Task ListBlobsRecursive(DataLakeFileSystemClient fileSystemClient, string folderPath,
+			Dictionary<string, BinaryData> ret, int currentDepth, int maxDepth, string containerName, bool resize)
+		{
+			if (currentDepth > maxDepth)
+			{
+				return;
+			}
+
+			DataLakeDirectoryClient directoryClient = fileSystemClient.GetDirectoryClient(folderPath);
+			await foreach (PathItem pathItem in directoryClient.GetPathsAsync())
+			{
+				if (pathItem.IsDirectory == true)
 				{
-					if ((bool)!pathItem.IsDirectory)
+					await ListBlobsRecursive(fileSystemClient, pathItem.Name, ret, currentDepth + 1, maxDepth, containerName, resize);
+				}
+				else
+				{
+					if (resize)
+					{
+						var binaryData = await GetFileAsBinaryDataWithResizeAsync(pathItem.Name, containerName, folderPath, 4194304);
+						ret.Add(pathItem.Name, binaryData);
+					}
+					else
 					{
 						var binaryData = await GetFileAsBinaryDataAsync(pathItem.Name, containerName, folderPath);
 						ret.Add(pathItem.Name, binaryData);
 					}
 				}
 			}
-			catch (Exception ex)
-			{
-				_logHelper.LogException($"An error occurred listing blobs: {ex.Message}", nameof(StorageHelper), nameof(ListBlobsInFolderAsync), ex);
-				throw;
-			}
-
-			return ret;
 		}
+		
+		//public async Task<Dictionary<string, BinaryData>> ListBlobsInFolderAsync(string containerName, string folderPath)
+		//{
+		//	var ret = new Dictionary<string, BinaryData>();
+		//	try
+		//	{
+		//		DataLakeFileSystemClient fileSystemClient = _serviceClient.GetFileSystemClient(containerName);
+		//		DataLakeDirectoryClient directoryClient = fileSystemClient.GetDirectoryClient(folderPath);
+
+		//		await foreach (PathItem pathItem in directoryClient.GetPathsAsync())
+		//		{
+		//			if ((bool)!pathItem.IsDirectory)
+		//			{
+		//				var binaryData = await GetFileAsBinaryDataAsync(pathItem.Name, containerName, folderPath);
+		//				ret.Add(pathItem.Name, binaryData);
+		//			}
+		//		}
+		//	}
+		//	catch (Exception ex)
+		//	{
+		//		_logHelper.LogException($"An error occurred listing blobs: {ex.Message}", nameof(StorageHelper), nameof(ListBlobsInFolderAsync), ex);
+		//		throw;
+		//	}
+
+		//	return ret;
+		//}
 
 		public async Task<string> UploadFileAsync(string containerName, string folderPath, string fullFilePath)
 		{
