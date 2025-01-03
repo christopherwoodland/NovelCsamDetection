@@ -1,3 +1,6 @@
+using Polly;
+using System.Net;
+
 namespace NovelCsamDetection.Helpers
 {
 	public class ContentSafteyHelper : IContentSafteyHelper
@@ -13,19 +16,34 @@ namespace NovelCsamDetection.Helpers
 		}
 		public AnalyzeImageResult? AnalyzeImage(BinaryData inputImage)
 		{
+			const int maxRetries = 3;
+			const int delayMilliseconds = 2000;
+
+			// Define a Polly retry policy
+			var retryPolicy = Policy
+				.Handle<HttpRequestException>(ex => ex.StatusCode == (HttpStatusCode)429)
+				.WaitAndRetry(maxRetries, retryAttempt => TimeSpan.FromMilliseconds(delayMilliseconds),
+					(exception, timeSpan, retryCount, context) =>
+					{
+						_logHelper.LogInformation($"Retry {retryCount}/{maxRetries} after receiving 429 Too Many Requests. Waiting {timeSpan.TotalMilliseconds}ms before retrying.",nameof(ContentSafteyHelper),nameof(AnalyzeImage));
+					});
+
 			try
 			{
-				if (_csc != null)
+				return retryPolicy.Execute(() =>
 				{
-					ContentSafetyImageData image = new(inputImage);
-					var request = new AnalyzeImageOptions(image);
-					var response = _csc.AnalyzeImage(request);
-					return response;
-				}
-				else
-				{
-					return null;
-				}
+					if (_csc != null)
+					{
+						ContentSafetyImageData image = new(inputImage);
+						var request = new AnalyzeImageOptions(image);
+						var response = _csc.AnalyzeImage(request);
+						return response;
+					}
+					else
+					{
+						return null;
+					}
+				});
 			}
 			catch (Exception ex)
 			{

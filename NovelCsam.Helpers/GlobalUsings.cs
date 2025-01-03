@@ -20,3 +20,7 @@ global using System.Security.Cryptography;
 global using System.Text;
 global using Xabe.FFmpeg;
 global using NovelCsam.Models;
+global using Polly;
+global using Polly.Retry;
+global using System.Net.Http;
+global using System.Threading.Tasks;

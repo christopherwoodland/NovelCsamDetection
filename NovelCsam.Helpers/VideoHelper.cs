@@ -1,4 +1,6 @@
-﻿namespace NovelCsamDetection.Helpers
+﻿using System.Net;
+
+namespace NovelCsamDetection.Helpers
 {
 	public class VideoHelper : IVideoHelper
 	{
@@ -37,7 +39,7 @@
 			_ash = ash;
 		}
 
-		public async Task<string> UploadVideoToBlobAsync(string containerName, string containerFolderPath, string sourceFileNameOrPath, string containerFolderPostfix = "", bool isImages = false, string timestampIn = "", string customName="")
+		public async Task<string> UploadVideoToBlobAsync(string containerName, string containerFolderPath, string sourceFileNameOrPath, string containerFolderPostfix = "", bool isImages = false, string timestampIn = "", string customName = "")
 		{
 			string timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
 			if (!string.IsNullOrEmpty(timestampIn))
@@ -54,7 +56,8 @@
 					ret = await _sth.UploadFileAsync(containerName, $"{containerFolderPath}/{placeHolder}/{timestamp}", sourceFileNameOrPath);
 				}
 			}
-			else {
+			else
+			{
 				if (!string.IsNullOrEmpty(containerFolderPostfix))
 					ret = await _sth.UploadFileAsync(containerName, $"{containerFolderPath}/{Path.GetFileName(sourceFileNameOrPath)}/{timestamp}/{containerFolderPostfix}", sourceFileNameOrPath);
 				else
@@ -62,10 +65,10 @@
 					ret = await _sth.UploadFileAsync(containerName, $"{containerFolderPath}/{Path.GetFileName(sourceFileNameOrPath)}/{timestamp}", sourceFileNameOrPath);
 				}
 			}
-			
+
 			return ret;
 		}
-		public async Task UploadFrameResultsToBlobAsync(string containerName, string containerFolderPath, string containerFolderPathResults, bool withBase64ofImage = false)
+		public async Task UploadFrameResultsAsync(string containerName, string containerFolderPath, string containerFolderPathResults, bool withBase64ofImage = false)
 		{
 			var list = await _sth.ListBlobsInFolderWithResizeAsync(containerName, containerFolderPath);
 			Dictionary<string, IFrameResult>? ret = [];
@@ -190,22 +193,37 @@
 
 		public async Task<string> SummarizeImageAsync(BinaryData imageBytes, string userPrompt)
 		{
+			const int maxRetries = 3;
+			const int delayMilliseconds = 2000;
+
+			// Define a Polly retry policy
+			var retryPolicy = Policy
+				.Handle<HttpRequestException>(ex => ex.StatusCode == (HttpStatusCode)429)
+				.WaitAndRetryAsync(maxRetries, retryAttempt => TimeSpan.FromMilliseconds(delayMilliseconds),
+					(exception, timeSpan, retryCount, context) =>
+					{
+						_logHelper.LogInformation($"Retry {retryCount}/{maxRetries} after receiving 429 Too Many Requests. Waiting {timeSpan.TotalMilliseconds}ms before retrying.",
+							nameof(VideoHelper), nameof(SummarizeImageAsync));
+					});
+
 			try
 			{
-				var chat = _kernel.GetRequiredService<IChatCompletionService>();
-				var history = new ChatHistory();
-				history.AddSystemMessage("You are a helpful assistant that responds to questions directly");
-				var message = new ChatMessageContentItemCollection
+				return await retryPolicy.ExecuteAsync(async () =>
 				{
-					new TextContent(userPrompt),//"Can you do a detail analysis and tell me all the minute details that present in this image?"),
-					new ImageContent(imageBytes,GetMimeType(imageBytes))
-				};
+					var chat = _kernel.GetRequiredService<IChatCompletionService>();
+					var history = new ChatHistory();
+					history.AddSystemMessage("You are a helpful assistant that responds to questions directly");
+					var message = new ChatMessageContentItemCollection
+			{
+				new TextContent(userPrompt),
+				new ImageContent(imageBytes, GetMimeType(imageBytes))
+			};
 
-				history.AddUserMessage(message);
-				var res = await chat.GetChatMessageContentAsync(history);
-				return res.Content ?? "NO SUMMARY GENERATED";
+					history.AddUserMessage(message);
+					var res = await chat.GetChatMessageContentAsync(history);
+					return res.Content ?? "NO SUMMARY GENERATED";
+				});
 			}
-
 			catch (Exception ex)
 			{
 				_logHelper.LogException($"An error occurred summarizing an image: {ex.Message}", nameof(VideoHelper), nameof(SummarizeImageAsync), ex);

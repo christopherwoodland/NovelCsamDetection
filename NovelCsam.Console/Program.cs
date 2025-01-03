@@ -54,10 +54,10 @@
 								await app.UploadExtractedFramesToBlobAsync(frameInterval, fileName, containerNameVideos, containerFolderPathInput, containerFolderPathExtracted, sourceFileNameOrPath);
 								break;
 							case 3:
-								await app.UploadFrameResultsToBlobAsync(containerNameVideos, containerFolderPathInput, containerFolderPathResults, true);
+								await app.UploadFrameResultsAsync(containerNameVideos, containerFolderPathInput, containerFolderPathResults, true);
 								break;
 							case 4:
-								await app.UploadFrameResultsToBlobAsync(containerNameVideos, containerFolderPathInput, containerFolderPathResults, true);
+								await app.UploadFrameResultsAsync(containerNameVideos, containerFolderPathInput, containerFolderPathResults, true);
 								break;
 							case 5:
 								await app.UploadVideoToBlobAsync(containerNameVideos, containerFolderPathInput, sourceFileNameOrPath);
